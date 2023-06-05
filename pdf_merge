@@ -1,0 +1,93 @@
+import os
+from tkinter import *
+from tkinter import filedialog
+from tkinter.ttk import *
+import PyPDF4
+from tkinter import messagebox
+
+
+class UnirPDFs:
+    def __init__(self, janela):
+        self.janela = janela
+        self.janela.title("Unir PDFs")
+        self.janela.geometry("600x600")
+
+        self.label = Label(janela, text="Selecione os arquivos PDF para unir:")
+        self.label.grid(row=1, column=0, padx=10, pady=10)
+
+        self.btn_selecionar = Button(janela, text="Selecionar PDFs", command=self.selecionar_arquivos)
+        self.btn_selecionar.grid(row=1, column=1, padx=10, pady=10, sticky="w")
+
+        self.lista_arquivos = Treeview(janela, selectmode="extended", columns=("Número", "Arquivo"), show="headings")
+        self.lista_arquivos.column("Número", width=50)
+        self.lista_arquivos.column("Arquivo", width=400)
+        self.lista_arquivos.heading("Número", text="Número")
+        self.lista_arquivos.heading("Arquivo", text="Arquivo")
+        self.lista_arquivos.grid(row=2, column=0, columnspan=3, rowspan=3, padx=10, pady=10)
+
+        self.btn_cima = Button(janela, text="↑", command=self.mover_para_cima)
+        self.btn_cima.grid(row=2, column=3, sticky="w", padx=10)
+
+        self.btn_baixo = Button(janela, text="↓", command=self.mover_para_baixo)
+        self.btn_baixo.grid(row=3, column=3, sticky="w", padx=10)
+
+        self.btn_excluir = Button(janela, text="Excluir Arquivo", command=self.excluir_arquivo)
+        self.btn_excluir.grid(row=4, column=3, sticky="w", padx=10)
+
+        self.btn_unir = Button(janela, text="Unir PDFs", command=self.unir_pdfs)
+        self.btn_unir.grid(row=5, column=0, columnspan=3, padx=10, pady=10)
+
+        self.arquivos_selecionados = []
+        self.numero_sequencial = 1
+
+    def selecionar_arquivos(self):
+        arquivos = filedialog.askopenfilenames(filetypes=[("Arquivos PDF", "*.pdf")])
+        for arquivo in arquivos:
+            nome_arquivo = os.path.basename(arquivo)
+            self.lista_arquivos.insert("", "end", values=(self.numero_sequencial, nome_arquivo, arquivo))
+            self.arquivos_selecionados.append(arquivo)
+            self.numero_sequencial += 1
+
+    def mover_para_cima(self):
+        selecao = self.lista_arquivos.selection()
+        for item in selecao:
+            indice = self.lista_arquivos.index(item)
+            if indice > 0:
+                self.lista_arquivos.move(item, "", indice - 1)
+
+    def mover_para_baixo(self):
+        selecao = self.lista_arquivos.selection()
+        for item in reversed(selecao):
+            indice = self.lista_arquivos.index(item)
+            if indice < len(self.lista_arquivos.get_children()) - 1:
+                self.lista_arquivos.move(item, "", indice + 1)
+
+    def excluir_arquivo(self):
+        selecao = self.lista_arquivos.selection()
+        for item in selecao:
+            arquivo = self.lista_arquivos.item(item)["values"][2]
+            self.lista_arquivos.delete(item)
+            self.arquivos_selecionados.remove(arquivo)
+
+    def unir_pdfs(self):
+        output_path = filedialog.asksaveasfilename(defaultextension=".pdf")
+        pdf_writer = PyPDF4.PdfFileWriter()
+
+        for item in self.lista_arquivos.get_children():
+            arquivo = self.lista_arquivos.item(item)["values"][2]
+            pdf_reader = PyPDF4.PdfFileReader(arquivo)
+            for pagina in range(pdf_reader.getNumPages()):
+                pdf_writer.addPage(pdf_reader.getPage(pagina))
+
+        with open(output_path, "wb") as output_file:
+            pdf_writer.write(output_file)
+
+        self.arquivos_selecionados = []
+        self.numero_sequencial = 1
+        self.lista_arquivos.delete(*self.lista_arquivos.get_children())
+        messagebox.showinfo("Unir PDFs", "Os arquivos PDF foram unidos com sucesso!")
+
+
+janela = Tk()
+unir_pdfs = UnirPDFs(janela)
+janela.mainloop()
